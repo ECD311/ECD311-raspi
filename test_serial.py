@@ -3,6 +3,7 @@ import csv
 import os
 import glob
 import ast
+import subprocess
 
 port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
 baud = 115200
@@ -51,6 +52,8 @@ except serial.SerialException:
 
 while (1):
     csvlines = 0
+    firstrun = 1
+
 
     if glob.glob("*.csv"):
         file = open(glob.glob("*.csv", recursive=False)[0], 'a')
@@ -62,65 +65,74 @@ while (1):
 
     while csvlines <= (30 * 60)/2:  # 30 mins @ 2 seconds per measurement
 
-        while ser.readline() != "LOG\n":  # may miss one log at first startup, shouldnt be an issue
+        while ser.readline().rstrip().decode("utf-8") != "LOG":  # may miss one log at first startup, shouldnt be an issue
             pass
+        print("rx\n")
+        rx_datetime = ser.readline().rstrip().decode("utf-8")
+        if firstrun:
+            rx_datetime_first = rx_datetime
+            firstrun = 0
+        sys_state = ser.readline().rstrip().decode("utf-8")
 
-        rx_datetime = ser.readline()
-        sys_state = ser.readline()
+        solar_voltage = ser.readline().rstrip().decode("utf-8")
+        solar_current = ser.readline().rstrip().decode("utf-8")
+        solar_power = ser.readline().rstrip().decode("utf-8")
 
-        solar_voltage = ser.readline()
-        solar_current = ser.readline()
-        solar_power = ser.readline()
+        bat1_voltage = ser.readline().rstrip().decode("utf-8")
+        bat2_voltage = ser.readline().rstrip().decode("utf-8")
 
-        bat1_voltage = ser.readline()
-        bat2_voltage = ser.readline()
+        bat_tot_voltage = ser.readline().rstrip().decode("utf-8")
+        bat_tot_current = ser.readline().rstrip().decode("utf-8")
+        bat_tot_power = ser.readline().rstrip().decode("utf-8")
 
-        bat_tot_voltage = ser.readline()
-        bat_tot_current = ser.readline()
-        bat_tot_power = ser.readline()
+        load_voltage = ser.readline().rstrip().decode("utf-8")
+        load_current = ser.readline().rstrip().decode("utf-8")
+        load_power = ser.readline().rstrip().decode("utf-8")
 
-        load_voltage = ser.readline()
-        load_current = ser.readline()
-        load_power = ser.readline()
+        inverter_voltage = ser.readline().rstrip().decode("utf-8")
+        inverter_current = ser.readline().rstrip().decode("utf-8")
+        inverter_power = ser.readline().rstrip().decode("utf-8")
 
-        inverter_voltage = ser.readline()
-        inverter_current = ser.readline()
-        inverter_power = ser.readline()
+        m1_voltage = ser.readline().rstrip().decode("utf-8")
+        m1_current = ser.readline().rstrip().decode("utf-8")
+        m1_power = ser.readline().rstrip().decode("utf-8")
 
-        m1_voltage = ser.readline()
-        m1_current = ser.readline()
-        m1_power = ser.readline()
+        m2_voltage = ser.readline().rstrip().decode("utf-8")
+        m2_current = ser.readline().rstrip().decode("utf-8")
+        m2_power = ser.readline().rstrip().decode("utf-8")
 
-        m2_voltage = ser.readline()
-        m2_current = ser.readline()
-        m2_power = ser.readline()
+        five_volt_voltage = ser.readline().rstrip().decode("utf-8")
+        five_volt_current = ser.readline().rstrip().decode("utf-8")
+        five_volt_power = ser.readline().rstrip().decode("utf-8")
 
-        five_volt_voltage = ser.readline()
-        five_volt_current = ser.readline()
-        five_volt_power = ser.readline()
+        wind_speed = ser.readline().rstrip().decode("utf-8")
 
-        wind_speed = ser.readline()
+        out_temp = ser.readline().rstrip().decode("utf-8")
+        out_humid = ser.readline().rstrip().decode("utf-8")
 
-        out_temp = ser.readline()
-        out_humid = ser.readline()
+        in_temp = ser.readline().rstrip().decode("utf-8")
+        in_humid = ser.readline().rstrip().decode("utf-8")
 
-        azim_reading = ser.readline()
-        azim_command = ser.readline()
-        azim_mode = ser.readline()
-        azim_status = ser.readline()
+        azim_reading = ser.readline().rstrip().decode("utf-8")
+        azim_command = ser.readline().rstrip().decode("utf-8")
+        azim_mode = ser.readline().rstrip().decode("utf-8")
+        azim_status = ser.readline().rstrip().decode("utf-8")
 
-        elev_reading = ser.readline()
-        elev_command = ser.readline()
-        elev_mode = ser.readline()
-        elev_status = ser.readline()
+        elev_reading = ser.readline().rstrip().decode("utf-8")
+        elev_command = ser.readline().rstrip().decode("utf-8")
+        elev_mode = ser.readline().rstrip().decode("utf-8")
+        elev_status = ser.readline().rstrip().decode("utf-8")
 
         # continue for each variable sent
         # ideally read a single json or dict and use json module / ast.literal_eval() to avoid having ~40 separate reads
 
-        writer.writerow({'Date_Time': rx_datetime, 'System_Status': sys_state})
+        writer.writerow({'Date_Time': rx_datetime, 'System_Status': sys_state, 'Solar_Panel_Voltage': solar_voltage, 'Solar_Panel_Current': solar_current, 'Solar_Panel_Power': solar_power, 'Battery_One_Voltage': bat1_voltage, 'Battery_Two_Voltage': bat2_voltage, 'Battery_Total_Voltage': bat_tot_voltage, 'Battery_Total_Current': bat_tot_current, 'Battery_Total_Power': bat_tot_power, 'Load_Voltage': load_voltage, 'Load_Current': load_current, 'Load_Power': load_power, 'Inverter_Voltage': inverter_voltage, 'Inverter_Current': inverter_current, 'Inverter_Power': inverter_power, 'Motor_One_Voltage': m1_voltage, 'Motor_One_Current': m1_current, 'Motor_One_Power': m1_power, 'Motor_Two_Voltage': m2_voltage, 'Motor_Two_Current': m2_current, 'Motor_Two_Power': m2_power, 'Five_Volt_Voltage': five_volt_voltage, 'Five_Volt_Current': five_volt_current, 'Five_Volt_Power': five_volt_power, 'Windspeed': wind_speed, 'Outdoor_Temp': out_temp, 'Outdoor_Humidity': out_humid, 'System_Temp': in_temp, 'System_Humidity': in_humid, 'Azimuth_Reading': azim_reading, 'Azimuth_Command': azim_command, 'Azimuth_Motor_Mode': azim_mode, 'Azimuth_Motor_Status': azim_status, 'Elevation_Reading': elev_reading, 'Elevation_Command': elev_command, 'Elevation_Motor_Mode': elev_mode, 'Elevation_Motor_Status': elev_status})
         if csvlines == 0:
             new_filename = "LOG_%s.csv" % rx_datetime
         csvlines += 1
     file.close()
     # using glob may be unnecessary here, there should almost never be existing csvs in the dir
-    os.rename(glob.glob("*.csv")[0], "move/" + new_filename)
+    new_filename = "LOG_" + rx_datetime_first + ".csv"
+    os.rename(glob.glob("*.csv")[0], "move/" + new_filename) # replace w scp 
+    subprocess.run("scp -F /home/pi/.ssh/config if /home/pi/.ssh/id_rsa \"/home/pi/Scripts/move/%s\" bingdev:\"%s\"" % new_filename, new_filename) # this kinda words, doesn't like unescaped strings though
+
