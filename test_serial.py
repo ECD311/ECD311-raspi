@@ -3,10 +3,23 @@ import csv
 import os
 import glob
 import ast
-import subprocess
 from paramiko import SSHClient
 from scp import SCPClient
+import cachetools
+from pyowm import owm
+import sys
+try:
+	import conf
+except:
+	sys.stderr.write("ERR: conf.py not found")
+	sys.exit(1)
 
+owm = owm.OWM(conf.owm_api_key)
+mgr = owm.weather_manager()
+
+@cachetools.cached(cache=cachetools.TTLCache(ttl=60*5)) # 5 minute cache
+def get_weather():
+     return mgr.weather_at_place(conf.place).weather.detailed_status
 
 port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
 baud = 115200
@@ -125,6 +138,8 @@ while (1):
         elev_command = ser.readline().rstrip().decode("utf-8")
         elev_mode = ser.readline().rstrip().decode("utf-8")
         elev_status = ser.readline().rstrip().decode("utf-8")
+
+        outdoor_conditions = get_weather()
 
         # continue for each variable sent
         # ideally read a single json or dict and use json module / ast.literal_eval() to avoid having ~40 separate reads
