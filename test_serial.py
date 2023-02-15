@@ -8,6 +8,8 @@ from scp import SCPClient
 import cachetools
 from pyowm import owm
 import sys
+from suncalc import get_position, get_times
+from datetime import datetime, timedelta
 try:
 	import conf
 except:
@@ -20,6 +22,13 @@ mgr = owm.weather_manager()
 @cachetools.cached(cache=cachetools.TTLCache(ttl=60*5)) # 5 minute cache
 def get_weather():
      return mgr.weather_at_place(conf.place).weather.detailed_status
+
+def get_current_position():
+    return get_position(datetime.utcnow(), conf.suncalc_lon, conf.suncalc_lat)
+
+def get_suntimes():
+    times = get_times(datetime.utcnow(), conf.suncalc_lon, conf.suncalc_lat)
+    return (times['sunrise'] - timedelta(hours=conf.datetime_offset), times['sunset'] - timedelta(hours=conf.datetime_offset))
 
 port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
 baud = 115200
