@@ -4,7 +4,7 @@ import os
 import glob
 import ast
 from paramiko import SSHClient
-from scp import SCPClient
+from pyscp import SCPClient
 import cachetools
 from pyowm import owm
 import sys
