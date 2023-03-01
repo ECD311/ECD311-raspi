@@ -78,7 +78,7 @@ except serial.SerialException:
 # does not handle errors from arduino, only logs
 
 while (1):
-    csvlines = 898
+    csvlines = 0
     firstrun = 1
 
     if glob.glob("*.csv"):
