@@ -157,11 +157,8 @@ while (1):
 
         writer.writerow({'Date_Time': rx_datetime, 'System_Status': sys_state, 'Solar_Panel_Voltage': solar_voltage, 'Solar_Panel_Current': solar_current, 'Solar_Panel_Power': solar_power, 'Battery_One_Voltage': bat1_voltage, 'Battery_Two_Voltage': bat2_voltage, 'Battery_Total_Voltage': bat_tot_voltage, 'Battery_Total_Current': bat_tot_current, 'Battery_Total_Power': bat_tot_power, 'Load_Voltage': load_voltage, 'Load_Current': load_current, 'Load_Power': load_power, 'Inverter_Voltage': inverter_voltage, 'Inverter_Current': inverter_current, 'Inverter_Power': inverter_power, 'Motor_One_Voltage': m1_voltage, 'Motor_One_Current': m1_current,
                         'Motor_One_Power': m1_power, 'Motor_Two_Voltage': m2_voltage, 'Motor_Two_Current': m2_current, 'Motor_Two_Power': m2_power, 'Five_Volt_Voltage': five_volt_voltage, 'Five_Volt_Current': five_volt_current, 'Five_Volt_Power': five_volt_power, 'Windspeed': wind_speed, 'Outdoor_Temp': out_temp, 'Outdoor_Humidity': out_humid, 'System_Temp': in_temp, 'System_Humidity': in_humid, 'Azimuth_Reading': azim_reading, 'Azimuth_Command': azim_command, 'Azimuth_Motor_Mode': azim_mode, 'Azimuth_Motor_Status': azim_status, 'Elevation_Reading': elev_reading, 'Elevation_Command': elev_command, 'Elevation_Motor_Mode': elev_mode, 'Elevation_Motor_Status': elev_status})
-        if csvlines == 0:
-            new_filename = "data_log_%s.csv" % rx_datetime
         csvlines += 1
     file.close()
-    # using glob may be unnecessary here, there should almost never be existing csvs in the dir
 
     ssh = SSHClient()
     ssh.load_system_host_keys()
