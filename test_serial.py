@@ -11,24 +11,28 @@ import sys
 from suncalc import get_position, get_times
 from datetime import datetime, timedelta
 try:
-	import conf
+    import conf
 except:
-	sys.stderr.write("ERR: conf.py not found")
-	sys.exit(1)
+    sys.stderr.write("ERR: conf.py not found")
+    sys.exit(1)
 
 owm = owm.OWM(conf.owm_api_key)
 mgr = owm.weather_manager()
 
-@cachetools.cached(cache=cachetools.TTLCache(ttl=60*5)) # 5 minute cache
+
+@cachetools.cached(cache=cachetools.TTLCache(ttl=60*5))  # 5 minute cache
 def get_weather():
-     return mgr.weather_at_place(conf.place).weather.detailed_status
+    return mgr.weather_at_place(conf.place).weather.detailed_status
+
 
 def get_current_position():
     return get_position(datetime.utcnow(), conf.suncalc_lon, conf.suncalc_lat)
 
+
 def get_suntimes():
     times = get_times(datetime.utcnow(), conf.suncalc_lon, conf.suncalc_lat)
     return (times['sunrise'] - timedelta(hours=conf.datetime_offset), times['sunset'] - timedelta(hours=conf.datetime_offset))
+
 
 port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
 baud = 115200
@@ -37,7 +41,8 @@ baud = 115200
 header = ['Date_Time', 'System_Status', 'Solar_Panel_Voltage', 'Solar_Panel_Current', 'Solar_Panel_Power', 'Battery_One_Voltage', 'Battery_Two_Voltage', 'Battery_Total_Voltage', 'Battery_Total_Current', 'Battery_Total_Power', 'Load_Voltage', 'Load_Current', 'Load_Power', 'Inverter_Voltage', 'Inverter_Current', 'Inverter_Power', 'Motor_One_Voltage', 'Motor_One_Current', 'Motor_One_Power',
           'Motor_Two_Voltage', 'Motor_Two_Current', 'Motor_Two_Power', 'Five_Volt_Voltage', 'Five_Volt_Current', 'Five_Volt_Power', 'Windspeed', 'Outdoor_Temp', 'Outdoor_Humidity', 'System_Temp', 'System_Humidity', 'Azimuth_Reading', 'Azimuth_Command', 'Azimuth_Motor_Mode', 'Azimuth_Motor_Status', 'Elevation_Reading', 'Elevation_Command', 'Elevation_Motor_Mode', 'Elevation_Motor_Status']
 
-newheader = ['Date_Time', 'System_Status', 'Solar_Panel_Voltage', 'Solar_Panel_Current', 'Solar_Panel_Power', 'Battery_One_Voltage', 'Battery_Two_Voltage', 'Battery_Total_Voltage', 'Battery_Total_Power', 'Load_Voltage', 'Load_Current', 'Load_Power', 'Windspeed', 'Outdoor_Temp', 'Outdoor_Humidity', 'Outdoor_Conditions', 'Azimuth_Reading', 'Azimuth_Command', 'Azimuth_Motor_Mode', 'Azimuth_Motor_Status', 'Elevation_Reading', 'Elevation_Command', 'Elevation_Motor_Mode', 'Elevation_Motor_Status']
+newheader = ['Date_Time', 'System_Status', 'Solar_Panel_Voltage', 'Solar_Panel_Current', 'Solar_Panel_Power', 'Battery_One_Voltage', 'Battery_Two_Voltage', 'Battery_Total_Voltage', 'Battery_Total_Power', 'Load_Voltage', 'Load_Current', 'Load_Power',
+             'Windspeed', 'Outdoor_Temp', 'Outdoor_Humidity', 'Outdoor_Conditions', 'Azimuth_Reading', 'Azimuth_Command', 'Azimuth_Motor_Mode', 'Azimuth_Motor_Status', 'Elevation_Reading', 'Elevation_Command', 'Elevation_Motor_Mode', 'Elevation_Motor_Status']
 
 try:
     ser = serial.Serial(port, baud)  # 9600 8N1 default
@@ -83,10 +88,10 @@ while (1):
 
     if glob.glob("*.csv"):
         file = open(glob.glob("*.csv", recursive=False)[0], 'a')
-        writer = csv.DictWriter(file, fieldnames=header)
+        writer = csv.DictWriter(file, fieldnames=newheader)
     else:
         file = open("new.csv", 'w')
-        writer = csv.DictWriter(file, fieldnames=header)
+        writer = csv.DictWriter(file, fieldnames=newheader)
         writer.writeheader()
 
     while csvlines <= (30 * 60)/2:  # 30 mins @ 2 seconds per measurement
@@ -95,68 +100,75 @@ while (1):
         while ser.readline().rstrip().decode("utf-8") != "LOG":
             pass
         print("rx\n")
-        rx_datetime = ser.readline().rstrip().decode("utf-8")
+        # rx_datetime = ser.readline().rstrip().decode("utf-8")
+        # if firstrun:
+        #     rx_datetime_first = rx_datetime
+        #     firstrun = 0
+        # sys_state = ser.readline().rstrip().decode("utf-8")
+
+        # solar_voltage = ser.readline().rstrip().decode("utf-8")
+        # solar_current = ser.readline().rstrip().decode("utf-8")
+        # solar_power = ser.readline().rstrip().decode("utf-8")
+
+        # bat1_voltage = ser.readline().rstrip().decode("utf-8")
+        # bat2_voltage = ser.readline().rstrip().decode("utf-8")
+
+        # bat_tot_voltage = ser.readline().rstrip().decode("utf-8")
+        # bat_tot_current = ser.readline().rstrip().decode("utf-8")
+        # bat_tot_power = ser.readline().rstrip().decode("utf-8")
+
+        # load_voltage = ser.readline().rstrip().decode("utf-8")
+        # load_current = ser.readline().rstrip().decode("utf-8")
+        # load_power = ser.readline().rstrip().decode("utf-8")
+
+        # inverter_voltage = ser.readline().rstrip().decode("utf-8")
+        # inverter_current = ser.readline().rstrip().decode("utf-8")
+        # inverter_power = ser.readline().rstrip().decode("utf-8")
+
+        # m1_voltage = ser.readline().rstrip().decode("utf-8")
+        # m1_current = ser.readline().rstrip().decode("utf-8")
+        # m1_power = ser.readline().rstrip().decode("utf-8")
+
+        # m2_voltage = ser.readline().rstrip().decode("utf-8")
+        # m2_current = ser.readline().rstrip().decode("utf-8")
+        # m2_power = ser.readline().rstrip().decode("utf-8")
+
+        # five_volt_voltage = ser.readline().rstrip().decode("utf-8")
+        # five_volt_current = ser.readline().rstrip().decode("utf-8")
+        # five_volt_power = ser.readline().rstrip().decode("utf-8")
+
+        # wind_speed = ser.readline().rstrip().decode("utf-8")
+
+        # out_temp = ser.readline().rstrip().decode("utf-8")
+        # out_humid = ser.readline().rstrip().decode("utf-8")
+
+        # in_temp = ser.readline().rstrip().decode("utf-8")
+        # in_humid = ser.readline().rstrip().decode("utf-8")
+
+        # azim_reading = ser.readline().rstrip().decode("utf-8")
+        # azim_command = ser.readline().rstrip().decode("utf-8")
+        # azim_mode = ser.readline().rstrip().decode("utf-8")
+        # azim_status = ser.readline().rstrip().decode("utf-8")
+
+        # elev_reading = ser.readline().rstrip().decode("utf-8")
+        # elev_command = ser.readline().rstrip().decode("utf-8")
+        # elev_mode = ser.readline().rstrip().decode("utf-8")
+        # elev_status = ser.readline().rstrip().decode("utf-8")
+
+        dict = ast.literal_eval(ser.readline().rstrip().decode("utf-8"))
         if firstrun:
-            rx_datetime_first = rx_datetime
+            rx_datetime_first = dict['Date_Time']
             firstrun = 0
-        sys_state = ser.readline().rstrip().decode("utf-8")
-
-        solar_voltage = ser.readline().rstrip().decode("utf-8")
-        solar_current = ser.readline().rstrip().decode("utf-8")
-        solar_power = ser.readline().rstrip().decode("utf-8")
-
-        bat1_voltage = ser.readline().rstrip().decode("utf-8")
-        bat2_voltage = ser.readline().rstrip().decode("utf-8")
-
-        bat_tot_voltage = ser.readline().rstrip().decode("utf-8")
-        bat_tot_current = ser.readline().rstrip().decode("utf-8")
-        bat_tot_power = ser.readline().rstrip().decode("utf-8")
-
-        load_voltage = ser.readline().rstrip().decode("utf-8")
-        load_current = ser.readline().rstrip().decode("utf-8")
-        load_power = ser.readline().rstrip().decode("utf-8")
-
-        inverter_voltage = ser.readline().rstrip().decode("utf-8")
-        inverter_current = ser.readline().rstrip().decode("utf-8")
-        inverter_power = ser.readline().rstrip().decode("utf-8")
-
-        m1_voltage = ser.readline().rstrip().decode("utf-8")
-        m1_current = ser.readline().rstrip().decode("utf-8")
-        m1_power = ser.readline().rstrip().decode("utf-8")
-
-        m2_voltage = ser.readline().rstrip().decode("utf-8")
-        m2_current = ser.readline().rstrip().decode("utf-8")
-        m2_power = ser.readline().rstrip().decode("utf-8")
-
-        five_volt_voltage = ser.readline().rstrip().decode("utf-8")
-        five_volt_current = ser.readline().rstrip().decode("utf-8")
-        five_volt_power = ser.readline().rstrip().decode("utf-8")
-
-        wind_speed = ser.readline().rstrip().decode("utf-8")
-
-        out_temp = ser.readline().rstrip().decode("utf-8")
-        out_humid = ser.readline().rstrip().decode("utf-8")
-
-        in_temp = ser.readline().rstrip().decode("utf-8")
-        in_humid = ser.readline().rstrip().decode("utf-8")
-
-        azim_reading = ser.readline().rstrip().decode("utf-8")
-        azim_command = ser.readline().rstrip().decode("utf-8")
-        azim_mode = ser.readline().rstrip().decode("utf-8")
-        azim_status = ser.readline().rstrip().decode("utf-8")
-
-        elev_reading = ser.readline().rstrip().decode("utf-8")
-        elev_command = ser.readline().rstrip().decode("utf-8")
-        elev_mode = ser.readline().rstrip().decode("utf-8")
-        elev_status = ser.readline().rstrip().decode("utf-8")
 
         outdoor_conditions = get_weather()
 
         # continue for each variable sent
         # ideally read a single json or dict and use json module / ast.literal_eval() to avoid having ~40 separate reads
 
-        writer.writerow({'Date_Time': rx_datetime, 'System_Status': sys_state, 'Solar_Panel_Voltage': solar_voltage, 'Solar_Panel_Current': solar_current, 'Solar_Panel_Power': solar_power, 'Battery_One_Voltage': bat1_voltage, 'Battery_Two_Voltage': bat2_voltage, 'Battery_Total_Voltage': bat_tot_voltage, 'Battery_Total_Current': bat_tot_current, 'Battery_Total_Power': bat_tot_power, 'Load_Voltage': load_voltage, 'Load_Current': load_current, 'Load_Power': load_power, 'Inverter_Voltage': inverter_voltage, 'Inverter_Current': inverter_current, 'Inverter_Power': inverter_power, 'Motor_One_Voltage': m1_voltage, 'Motor_One_Current': m1_current,
-                        'Motor_One_Power': m1_power, 'Motor_Two_Voltage': m2_voltage, 'Motor_Two_Current': m2_current, 'Motor_Two_Power': m2_power, 'Five_Volt_Voltage': five_volt_voltage, 'Five_Volt_Current': five_volt_current, 'Five_Volt_Power': five_volt_power, 'Windspeed': wind_speed, 'Outdoor_Temp': out_temp, 'Outdoor_Humidity': out_humid, 'System_Temp': in_temp, 'System_Humidity': in_humid, 'Azimuth_Reading': azim_reading, 'Azimuth_Command': azim_command, 'Azimuth_Motor_Mode': azim_mode, 'Azimuth_Motor_Status': azim_status, 'Elevation_Reading': elev_reading, 'Elevation_Command': elev_command, 'Elevation_Motor_Mode': elev_mode, 'Elevation_Motor_Status': elev_status})
+        # writer.writerow({'Date_Time': rx_datetime, 'System_Status': sys_state, 'Solar_Panel_Voltage': solar_voltage, 'Solar_Panel_Current': solar_current, 'Solar_Panel_Power': solar_power, 'Battery_One_Voltage': bat1_voltage, 'Battery_Two_Voltage': bat2_voltage, 'Battery_Total_Voltage': bat_tot_voltage, 'Battery_Total_Current': bat_tot_current, 'Battery_Total_Power': bat_tot_power, 'Load_Voltage': load_voltage, 'Load_Current': load_current, 'Load_Power': load_power, 'Inverter_Voltage': inverter_voltage, 'Inverter_Current': inverter_current, 'Inverter_Power': inverter_power, 'Motor_One_Voltage': m1_voltage, 'Motor_One_Current': m1_current,
+        #                 'Motor_One_Power': m1_power, 'Motor_Two_Voltage': m2_voltage, 'Motor_Two_Current': m2_current, 'Motor_Two_Power': m2_power, 'Five_Volt_Voltage': five_volt_voltage, 'Five_Volt_Current': five_volt_current, 'Five_Volt_Power': five_volt_power, 'Windspeed': wind_speed, 'Outdoor_Temp': out_temp, 'Outdoor_Humidity': out_humid, 'System_Temp': in_temp, 'System_Humidity': in_humid, 'Azimuth_Reading': azim_reading, 'Azimuth_Command': azim_command, 'Azimuth_Motor_Mode': azim_mode, 'Azimuth_Motor_Status': azim_status, 'Elevation_Reading': elev_reading, 'Elevation_Command': elev_command, 'Elevation_Motor_Mode': elev_mode, 'Elevation_Motor_Status': elev_status})
+
+        writer.writerow(dict)
         csvlines += 1
     file.close()
 
