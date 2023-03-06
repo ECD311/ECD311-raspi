@@ -12,20 +12,21 @@ from suncalc import get_position, get_times
 from datetime import datetime, timedelta
 import math
 try:
-	import conf
+    import conf
 except:
-	sys.stderr.write("ERR: conf.py not found")
-	sys.exit(1)
+    sys.stderr.write("ERR: conf.py not found")
+    sys.exit(1)
 
 owm = owm.OWM(conf.owm_api_key)
 mgr = owm.weather_manager()
 
 global rx_datetime_first
+rx_datetime_first = "0000-00-00_00:00:00"
 
 
 @cachetools.cached(cache=cachetools.TTLCache(ttl=60*5))  # 5 minute cache
 def get_weather():
-     return mgr.weather_at_place(conf.place).weather.detailed_status
+    return mgr.weather_at_place(conf.place).weather.detailed_status
 
 
 def get_current_position():  # ['azimuth': azimuth, 'altitude': altitude]
@@ -34,7 +35,8 @@ def get_current_position():  # ['azimuth': azimuth, 'altitude': altitude]
 
 def get_suntimes(): # need to figure out conversion to compatible timestamp for arduino
     times = get_times(datetime.utcnow(), conf.suncalc_lon, conf.suncalc_lat)
-    return (times['sunrise'] - timedelta(hours=conf.datetime_offset), times['sunset'] - timedelta(hours=conf.datetime_offset))
+    times_tomorrow = get_times(datetime.utcnow() + timedelta(hours=24), conf.suncalc_lon, conf.suncalc_lat)
+    return (times['sunrise'] - timedelta(hours=conf.datetime_offset), times['sunset'] - timedelta(hours=conf.datetime_offset), times_tomorrow['sunrise'] - timedelta(hours=conf.datetime_offset), times_tomorrow['sunset'] - timedelta(hours=conf.datetime_offset))
 
 
 def rx_data(writer):
@@ -57,7 +59,8 @@ baud = 115200
 header = ['Date_Time', 'System_Status', 'Solar_Panel_Voltage', 'Solar_Panel_Current', 'Solar_Panel_Power', 'Battery_One_Voltage', 'Battery_Two_Voltage', 'Battery_Total_Voltage', 'Battery_Total_Current', 'Battery_Total_Power', 'Load_Voltage', 'Load_Current', 'Load_Power', 'Inverter_Voltage', 'Inverter_Current', 'Inverter_Power', 'Motor_One_Voltage', 'Motor_One_Current', 'Motor_One_Power',
           'Motor_Two_Voltage', 'Motor_Two_Current', 'Motor_Two_Power', 'Five_Volt_Voltage', 'Five_Volt_Current', 'Five_Volt_Power', 'Windspeed', 'Outdoor_Temp', 'Outdoor_Humidity', 'System_Temp', 'System_Humidity', 'Azimuth_Reading', 'Azimuth_Command', 'Azimuth_Motor_Mode', 'Azimuth_Motor_Status', 'Elevation_Reading', 'Elevation_Command', 'Elevation_Motor_Mode', 'Elevation_Motor_Status']
 
-newheader = ['Date_Time', 'System_Status', 'Solar_Panel_Voltage', 'Solar_Panel_Current', 'Solar_Panel_Power', 'Battery_One_Voltage', 'Battery_Two_Voltage', 'Battery_Total_Voltage', 'Battery_Total_Power', 'Load_Voltage', 'Load_Current', 'Load_Power', 'Windspeed', 'Outdoor_Temp', 'Outdoor_Humidity', 'Outdoor_Conditions', 'Azimuth_Reading', 'Azimuth_Command', 'Azimuth_Motor_Mode', 'Azimuth_Motor_Status', 'Elevation_Reading', 'Elevation_Command', 'Elevation_Motor_Mode', 'Elevation_Motor_Status']
+newheader = ['Date_Time', 'System_Status', 'Solar_Panel_Voltage', 'Solar_Panel_Current', 'Solar_Panel_Power', 'Battery_One_Voltage', 'Battery_Two_Voltage', 'Battery_Total_Voltage', 'Battery_Total_Power', 'Load_Voltage', 'Load_Current', 'Load_Power',
+             'Windspeed', 'Outdoor_Temp', 'Outdoor_Humidity', 'Outdoor_Conditions', 'Azimuth_Reading', 'Azimuth_Command', 'Azimuth_Motor_Mode', 'Azimuth_Motor_Status', 'Elevation_Reading', 'Elevation_Command', 'Elevation_Motor_Mode', 'Elevation_Motor_Status']
 
 try:
     ser = serial.Serial(port, baud)  # 9600 8N1 default
@@ -103,10 +106,10 @@ while (1):
 
     if glob.glob("*.csv"):
         file = open(glob.glob("*.csv", recursive=False)[0], 'a')
-        writer = csv.DictWriter(file, fieldnames=header)
+        writer = csv.DictWriter(file, fieldnames=newheader)
     else:
         file = open("new.csv", 'w')
-        writer = csv.DictWriter(file, fieldnames=header)
+        writer = csv.DictWriter(file, fieldnames=newheader)
         writer.writeheader()
 
     while csvlines <= (30 * 60)/2:  # 30 mins @ 2 seconds per measurement
