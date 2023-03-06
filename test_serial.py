@@ -118,16 +118,16 @@ while (1):
         if (line == "LOG"):
             rx_data(writer)
             csvlines += 1
-        elif (line == "new_position"):  # azimuth, then altitude
+        elif (line == "new_position"):  # azimuth, then altitude in degrees
             location = get_current_position()
-            ser.write("%s\r\n" % location['azimuth'] * 180 / math.PI)
-            ser.write("%s\r\n" % location['altitude'] * 180 / math.PI)
+            ser.write("%s\r\n" % int(location['azimuth'] * 180 / math.pi))
+            ser.write("%s\r\n" % int(location['altitude'] * 180 / math.pi))
         elif (line == "new_times"):
             times = get_suntimes()
-            ser.write("%s\r\n", times[0].strftime("%H:%M:%S"))
-            ser.write("%s\r\n", times[1].strftime("%H:%M:%S"))
-
-
+            ser.write("%s\r\n" % times[0].strftime("%H:%M:%S"))
+            ser.write("%s\r\n" % times[1].strftime("%H:%M:%S"))
+            ser.write("%s\r\n" % times[2].strftime("%H:%M:%S"))
+            ser.write("%s\r\n" % times[3].strftime("%H:%M:%S"))
 
     file.close()
 
