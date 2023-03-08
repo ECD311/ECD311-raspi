@@ -11,7 +11,6 @@ import sys
 from pysolar.solar import get_altitude, get_azimuth
 from pysolar.util import get_sunrise_sunset
 from datetime import datetime, timedelta, timezone
-import math
 try:
     import conf
 except:
@@ -25,20 +24,28 @@ rx_datetime_first = "0000-00-00_00:00:00"
 firstrun = 1
 
 
-@cachetools.cached(cache=cachetools.TTLCache(ttl=60*5, maxsize=1))  # 5 minute cache
+# 5 minute cache
+@cachetools.cached(cache=cachetools.TTLCache(ttl=60*5, maxsize=1))
 def get_weather():
     return mgr.weather_at_place(conf.place).weather.detailed_status
 
 
-def get_current_position():  # ['azimuth': azimuth, 'altitude': altitude]
-    azimuth = get_azimuth(conf.suncalc_lat, conf.suncalc_lon, datetime.now(tz=timezone.utc))
-    altitude = get_altitude(conf.suncalc_lat, conf.suncalc_lon, datetime.now(tz=timezone.utc))
+def get_current_position():  # {'azimuth': azimuth, 'altitude': altitude}
+    azimuth = get_azimuth(conf.suncalc_lat, conf.suncalc_lon,
+                          datetime.now(tz=timezone.utc))
+    altitude = get_altitude(
+        conf.suncalc_lat, conf.suncalc_lon, datetime.now(tz=timezone.utc))
     return {'azimuth': azimuth, 'altitude': altitude}
 
-def get_suntimes():  # need to figure out conversion to compatible timestamp for arduino
-    times = get_sunrise_sunset(conf.suncalc_lat, conf.suncalc_lon, datetime.now(tz=timezone.utc))
-    times_tomorrow = get_sunrise_sunset(conf.suncalc_lat, conf.suncalc_lon, datetime.now(tz=timezone.utc) + timedelta(hours=24))
-    return (times[0] - timedelta(hours=conf.datetime_offset), times[1] - timedelta(hours=conf.datetime_offset), times_tomorrow[0] - timedelta(hours=conf.datetime_offset), times_tomorrow[1] - timedelta(hours=conf.datetime_offset))
+
+def get_suntimes():  # (sunrise, sunset, azimuth @ sunrise, altitude @ sunrise)
+    times = get_sunrise_sunset(
+        conf.suncalc_lat, conf.suncalc_lon, datetime.now(tz=timezone.utc))
+    sunrise_position_azim = get_azimuth(
+        conf.suncalc_lat, conf.suncalc_lon, times[0])
+    sunrise_position_alt = get_altitude(
+        conf.suncalc_lat, conf.suncalc_lon, times[0])
+    return (times[0], times[1], sunrise_position_azim, sunrise_position_alt)
 
 
 def rx_data(writer):
@@ -125,26 +132,27 @@ while (1):
         elif (line == "new_position"):  # azimuth, then altitude in degrees
             print("position")
             location = get_current_position()
-            azim = b"%i\r\n" % int(location['azimuth'])
-            elev = b"%i\r\n" % int(location['altitude'])
+            azim = b"%i\n" % int(location['azimuth'])
+            elev = b"%i\n" % int(location['altitude'])
             ser.write(azim)
             ser.write(elev)
+            print("azimuth: %d" % int(location['azimuth']))
+            print("elevation: %d" % int(location['altitude']))
             #print('actual: ' + str(int(location['azimuth'])))
             #print('actual: ' + str(int(location['altitude'])))
-            #print(ser.read(6).rstrip().decode("utf-8"))
+            # print(ser.read(6).rstrip().decode("utf-8"))
 
         elif (line == "new_times"):
             print("times")
             times = get_suntimes()
-            time0 = "%s\r\n" % times[0].strftime("%H:%M:%S")
-            time1 = "%s\r\n" % times[1].strftime("%H:%M:%S")
-            time2 = "%s\r\n" % times[2].strftime("%H:%M:%S")
-            time3 = "%s\r\n" % times[3].strftime("%H:%M:%S")
+            time0 = "%s\n" % times[0].strftime("%H:%M:%S")
+            time1 = "%s\n" % times[1].strftime("%H:%M:%S")
+            azim = b"%i\n" % int(times[2])
+            elev = b"%i\n" % int(times[3])
             ser.write(time0.encode())
             ser.write(time1.encode())
-            ser.write(time2.encode())
-            ser.write(time3.encode())
-
+            ser.write(azim)
+            ser.write(elev)
 
     file.close()
 
