@@ -82,36 +82,21 @@ try:
 except serial.SerialException:
     ser = serial.Serial()  # the serial port isn't available, create a closed interface
 
-# LOG
-# datetime - date time
-# state - maint, wind, etc
-# solar V\n I\n W\n
-# batt 1 V
-# batt 2 V
-# batt total V\n I\n W\n
-# load V\n I\n W\n
-# inverter V\n I\n W\n
-# motor 1 V\n I\n W\n
-# motor 2 V\n I\n W\n
-# 5V rail V\n I\n W\n
-# wind speed (m/s)
-# out temp
-# out humidity
-# in temp
-# in humidity
-# azim reading + command
-# azim motor mode (auto, manual)
-# azim motor status (ccw, cw, off)
-# elev reading + command
-# elev motor mode (auto, manual)
-# elev motor status (ccw, cw, off)
-
 # if a csv exists in current dir, open it
 # after N lines in csv, close, move to other dir to get sent to bingweb
 
+# LOG\r\n
+# dict containing all sensor data, using ast.literal_eval() to transform into actual python dict
+#   dict based on newheader
+
+# optional:
+# new_position
+# respond with the current azimuth and elevation of the sun
+# new_times
+# respond with today's sunrise/sunset and position at sunrise
+
 # wait for readline() to return "LOG\n"
 # if csv doesnt exist in current dir, make a new one with ts value in next readline()
-# read in each value from readline(), insert into csv via dict, and repeat
 
 # does not handle errors from arduino, only logs
 
