@@ -51,7 +51,12 @@ def get_suntimes():  # (sunrise, sunset, azimuth @ sunrise, altitude @ sunrise)
 def rx_data(writer):
     print("rx\n")
     global firstrun
-    dict = ast.literal_eval(ser.readline().rstrip().decode("utf-8"))
+    try:
+        # print(ser.readline().rstrip().decode("utf-8"))
+        dict = ast.literal_eval(ser.readline().rstrip().decode("utf-8"))
+        print(dict)
+    except: # just ignore errors here, should only error once
+        return -1
     if firstrun:
         rx_datetime_first = dict['Date_Time']
         firstrun = 0
@@ -59,6 +64,7 @@ def rx_data(writer):
     outdoor_conditions = get_weather()
     dict["outdoor_conditions"] = outdoor_conditions
     writer.writerow(dict)
+    return 0
 
 
 port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
@@ -127,8 +133,8 @@ while (1):
         line = ser.readline().rstrip().decode("utf-8")
 
         if (line == "LOG"):
-            rx_data(writer)
-            csvlines += 1
+            if(rx_data(writer) == 0):
+                csvlines += 1
         elif (line == "new_position"):  # azimuth, then altitude in degrees
             print("position")
             location = get_current_position()
