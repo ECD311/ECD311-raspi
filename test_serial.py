@@ -10,7 +10,7 @@ from pyowm import owm
 import sys
 from pysolar.solar import get_altitude, get_azimuth
 from pysolar.util import get_sunrise_sunset
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 try:
     import conf
 except:
