@@ -155,7 +155,16 @@ while (1):
 
     new_filename = "data_log_" + rx_datetime_first + ".csv"
     os.rename(glob.glob("*.csv")[0], "move/" + new_filename)
-    scp.put("move/" + new_filename, remote_path='datalogs/')
+    for filename in glob.glob("move/*.csv"):
+        scp.put(filename, remote_path='datalogs/')
+    try:
+        scp._recv_confirm()
+    except:
+        scp.close()
+        ssh.close()
+        print('issue sending csv')
+        continue
+    os.rename("move/" + new_filename, "moved/" + new_filename)
     scp.close()
     ssh.close()
     print("send data")
