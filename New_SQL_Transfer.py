@@ -6,6 +6,7 @@ import os
 import time
 import conf
 import glob
+import string
 
 src = 'datalogs/'
 dst = 'archive/'
@@ -18,7 +19,7 @@ def intake_csv(filename):
     reader = csv.reader(file)
     for idx, row in enumerate(reader):
         if (idx != 0): # skip the header
-            cursor.execute('INSERT INTO %s VALUES(%s)',conf.sql_table, row) # check, will substitution work here
+            cursor.execute('INSERT INTO %s VALUES(%s)',conf.sql_table, ','.join(row))
     mydb.commit()
     cursor.close()
     file.close()
