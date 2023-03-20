@@ -4,7 +4,7 @@ import os
 import glob
 import ast
 from paramiko import SSHClient
-from pyscp import SCPClient
+from scp import SCPClient
 import cachetools
 from pyowm import owm
 import sys
@@ -27,7 +27,7 @@ firstrun = 1
 # 5 minute cache
 @cachetools.cached(cache=cachetools.TTLCache(ttl=60*5, maxsize=1))
 def get_weather():
-    return mgr.weather_at_place(conf.place).weather.detailed_status
+    return mgr.weather_at_place(conf.owm_location).weather.detailed_status
 
 
 def get_current_position():  # {'azimuth': azimuth, 'altitude': altitude}
@@ -55,7 +55,7 @@ def rx_data(writer):
         # print(ser.readline().rstrip().decode("utf-8"))
         dict = ast.literal_eval(ser.readline().rstrip().decode("utf-8"))
         print(dict)
-    except: # just ignore errors here, should only error once
+    except:  # just ignore errors here, should only error once
         return -1
     if firstrun:
         rx_datetime_first = dict['Date_Time']
@@ -114,11 +114,13 @@ while (1):
     while csvlines <= (30 * 60)/2:  # 30 mins @ 2 seconds per measurement
 
         # may miss one log at first startup, shouldnt be an issue
-
-        line = ser.readline().rstrip().decode("utf-8")
+        try:
+            line = ser.readline().rstrip().decode("utf-8")
+        except:
+            line = ""
 
         if (line == "LOG"):
-            if(rx_data(writer) == 0):
+            if (rx_data(writer) == 0):
                 csvlines += 1
         elif (line == "new_position"):  # azimuth, then altitude in degrees
             print("position")
