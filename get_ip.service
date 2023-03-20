@@ -1,0 +1,10 @@
+[Unit]
+Description=send current IP address to bingdev server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/home/pi/Scripts/get_ip.sh
+
+[Install]
+WantedBy=multi-user.target
