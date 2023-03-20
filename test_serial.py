@@ -102,8 +102,10 @@ except serial.SerialException:
 # if csv doesnt exist in current dir, make a new one with ts value in next readline()
 
 # does not handle errors from arduino, only logs
-
-ser.write("start\n")
+try:
+    ser.write("start\n")
+except:
+    sys.stderr.write("ERR: Unable to send start string - arduino will not start up")
 
 while (datetime_start < datetime_start + timedelta(hours=12)):
     csvlines = 0
