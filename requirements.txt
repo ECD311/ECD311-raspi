@@ -1,6 +1,6 @@
 pyowm==3.3.0
 pyserial==3.5
-paramiko==3.0.0
-pyscp==1.1.20
+paramiko==3.1.0
 cachetools==5.3.0
-suncalc==0.1.2
+pysolar==0.10
+scp==0.14.5
