@@ -103,6 +103,8 @@ except serial.SerialException:
 
 # does not handle errors from arduino, only logs
 
+ser.write("start\n")
+
 while (datetime_start < datetime_start + timedelta(hours=12)):
     csvlines = 0
 
