@@ -11,11 +11,11 @@ from pyowm import owm
 import sys
 from pysolar.solar import get_altitude, get_azimuth
 from pysolar.util import get_sunrise_sunset
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 try:
     import conf
 except:
-    sys.stderr.write("ERR: conf.py not found")
+    sys.stderr.write("ERR: conf.py not found\r\n")
     sys.exit(1)
 
 owm = owm.OWM(conf.owm_api_key)
@@ -83,6 +83,7 @@ try:
     ser = serial.Serial(port, baud)  # 9600 8N1 default
 except serial.SerialException:
     ser = serial.Serial()  # the serial port isn't available, create a closed interface
+    sys.stderr.write("ERR: Unable to open serial port %s\r\n" % port)
 
 # if a csv exists in current dir, open it
 # after N lines in csv, close, move to other dir to get sent to bingweb
