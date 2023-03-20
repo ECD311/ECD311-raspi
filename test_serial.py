@@ -22,6 +22,7 @@ owm = owm.OWM(conf.owm_api_key)
 mgr = owm.weather_manager()
 
 rx_datetime_first = "0000-00-00_00:00:00"
+datetime_start = datetime.now(tz=timezone.utc)
 firstrun = 1
 
 
@@ -101,7 +102,7 @@ except serial.SerialException:
 
 # does not handle errors from arduino, only logs
 
-while (1):
+while (datetime_start < datetime_start + timedelta(hours=12)):
     csvlines = 0
 
     if glob.glob("*.csv"):
@@ -159,14 +160,13 @@ while (1):
     new_filename = "data_log_" + rx_datetime_first + ".csv"
     os.rename(glob.glob("*.csv")[0], "move/" + new_filename)
     for filename in glob.glob("move/*.csv"):
-        scp.put(filename, remote_path='datalogs/')
-    try:
-        scp._recv_confirm()
-    except:
-        scp.close()
-        ssh.close()
-        print('issue sending csv')
-        continue
+        try:
+            scp.put(filename, remote_path='datalogs/')
+        except:
+            scp.close()
+            ssh.close()
+            print('issue sending csv')
+            continue
     os.rename("move/" + new_filename, "moved/" + new_filename)
     scp.close()
     ssh.close()
