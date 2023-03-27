@@ -54,17 +54,23 @@ def rx_data(writer):
     print("rx\n")
     global firstrun
     try:
-        # print(ser.readline().rstrip().decode("utf-8"))
-        dict = ast.literal_eval(ser.readline().rstrip().decode("utf-8"))
-        print(dict)
+        line = ser.readline().rstrip().decode("utf-8")
+        # print(line)
+    except:
+        pass
+    try:
+        dict = ast.literal_eval(line)
+        # print(dict)
     except:  # just ignore errors here, should only error once
+        print("failed read")
         return -1
+
     if firstrun:
         rx_datetime_first = dict['Date_Time']
         firstrun = 0
 
     outdoor_conditions = get_weather()
-    dict["outdoor_conditions"] = outdoor_conditions
+    dict["Outdoor_Conditions"] = outdoor_conditions
     writer.writerow(dict)
     return 0
 
@@ -126,6 +132,7 @@ while (datetime_start < datetime_start + timedelta(hours=12)):
         except:
             line = ""
 
+        print(line)
         if (line == "LOG"):
             if (rx_data(writer) == 0):
                 csvlines += 1
