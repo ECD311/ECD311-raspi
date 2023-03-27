@@ -19,7 +19,13 @@ def intake_csv(filename):
     reader = csv.reader(file)
     for idx, row in enumerate(reader):
         if (idx != 0): # skip the header
-            cursor.execute('INSERT INTO %s VALUES(%s)',conf.sql_table, ','.join(row))
+            string = ''
+            for idx, element in enumerate(row):
+                if(idx == 0):
+                    string += "'%s'" % element
+                else:
+                    string += ",'%s'" % element 
+            cursor.execute('INSERT INTO %s VALUES(%s)' % (conf.sql_table, string)) # ','.join(newlist)
     mydb.commit()
     cursor.close()
     file.close()
