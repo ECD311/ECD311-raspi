@@ -29,7 +29,11 @@ firstrun = 1
 # 5 minute cache
 @cachetools.cached(cache=cachetools.TTLCache(ttl=60*5, maxsize=1))
 def get_weather():
-    return mgr.weather_at_place(conf.owm_location).weather.detailed_status
+    try: 
+        retval = mgr.weather_at_place(conf.owm_location).weather.detailed_status
+    except:
+        retval = "conditions unavailable"
+    return retval
 
 
 def get_current_position():  # {'azimuth': azimuth, 'altitude': altitude}
