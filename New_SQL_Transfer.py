@@ -6,14 +6,19 @@ import os
 import time
 import conf
 import glob
+import sys
 import string
 
 src = 'datalogs/'
 dst = 'archive/'
 
 def intake_csv(filename):
-    mydb = MySQLdb.connect(host='bingdev-db.binghamton.edu',
+    try:
+        mydb = MySQLdb.connect(host='bingdev-db.binghamton.edu',
                            user='watsonsolar', passwd=conf.sql_passwd, db='watsonsolar')
+    except:
+        sys.stderr("Failed to connect to SQL database\r\n")
+        return -1
     cursor = mydb.cursor()
     file = open(filename, 'r')
     reader = csv.reader(file)
@@ -25,16 +30,26 @@ def intake_csv(filename):
                     string += "'%s'" % element
                 else:
                     string += ",'%s'" % element 
-            cursor.execute('INSERT INTO %s VALUES(%s)' % (conf.sql_table, string)) # ','.join(newlist)
+            try:
+                cursor.execute('INSERT INTO %s VALUES(%s)' % (conf.sql_table, string))
+            except:
+                sys.stderr("ERR: Failed to execute SQL query\r\n")
+                mydb.commit()
+                cursor.close()
+                file.close()
+                return -2
     mydb.commit()
     cursor.close()
     file.close()
     os.rename(filename, dst+(filename.split('/')[-1]))
+    return 0
 
 while 1:
     if glob.glob(src+'*.csv'):
         for file in glob.glob(src+'*.csv'):
-            intake_csv(file)
+            retval = intake_csv(file)
+            if (retval != 0):
+                pass # do something to log/notify about error
     time.sleep(15*60) # wait for 15 minutes
 
 # while True:
