@@ -153,7 +153,7 @@ try:
 except:
     sys.stderr.write("ERR: Unable to send start string - arduino will not start up")
 
-while (datetime_start < datetime_start + timedelta(hours=12)):
+while (datetime_start < (datetime_start + timedelta(hours=12))):
     csvlines = 0
 
     if glob.glob("*.csv"):
