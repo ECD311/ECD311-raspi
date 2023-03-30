@@ -7,7 +7,6 @@ import time
 import conf
 import glob
 import sys
-import string
 
 src = 'datalogs/'
 dst = 'archive/'
