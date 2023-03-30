@@ -12,6 +12,7 @@ import sys
 from pysolar.solar import get_altitude, get_azimuth
 from pysolar.util import get_sunrise_sunset
 from datetime import datetime, timezone, timedelta
+import cronitor
 try:
     import conf
 except:
@@ -53,20 +54,49 @@ def get_suntimes():  # (sunrise, sunset, azimuth @ sunrise, altitude @ sunrise)
         conf.suncalc_lat, conf.suncalc_lon, times[0])
     return (times[0], times[1], sunrise_position_azim, sunrise_position_alt)
 
+@cronitor.job('upload_data')
+def upload_data():
+    ssh = SSHClient()
+    ssh.load_system_host_keys()
+    ssh.connect('34.238.23.117', username='watsolar')
 
+    scp = SCPClient(ssh.get_transport())
+
+    new_filename = "data_log_" + rx_datetime_first + ".csv"
+    os.rename(glob.glob("*.csv")[0], "move/" + new_filename)
+    for filename in glob.glob("move/*.csv"):
+        try:
+            scp.put(filename, remote_path='datalogs/')
+        except:
+            # scp.close()
+            # ssh.close()
+            print('issue sending csv')
+            sys.stderr.write("ERR: Failed to upload file %s to bingdev\r\n" % filename)
+            continue
+        os.rename(filename, "moved/" + filename.split('/')[-1])
+    # os.rename("move/" + new_filename, "moved/" + new_filename)
+    scp.close()
+    ssh.close()
+    sys.stdout.write("LOG: Uploaded files to bingdev\r\n")
+    print("send data")
+
+@cronitor.job('rx_data')
 def rx_data(writer):
     print("rx\n")
     global firstrun
+    global rx_datetime_first
     try:
         line = ser.readline().rstrip().decode("utf-8")
         # print(line)
     except:
+        sys.stderr.write("WARN: Failed to receive/decode input\r\n")
         pass
     try:
         dict = ast.literal_eval(line)
         # print(dict)
     except:  # just ignore errors here, should only error once
         print("failed read")
+        sys.stderr.write("WARN: failed to literal eval input\r\n")
         return -1
 
     if firstrun:
@@ -167,23 +197,4 @@ while (datetime_start < datetime_start + timedelta(hours=12)):
 
     file.close()
 
-    ssh = SSHClient()
-    ssh.load_system_host_keys()
-    ssh.connect('34.238.23.117', username='watsolar')
-
-    scp = SCPClient(ssh.get_transport())
-
-    new_filename = "data_log_" + rx_datetime_first + ".csv"
-    os.rename(glob.glob("*.csv")[0], "move/" + new_filename)
-    for filename in glob.glob("move/*.csv"):
-        try:
-            scp.put(filename, remote_path='datalogs/')
-        except:
-            scp.close()
-            ssh.close()
-            print('issue sending csv')
-            continue
-    os.rename("move/" + new_filename, "moved/" + new_filename)
-    scp.close()
-    ssh.close()
-    print("send data")
+    upload_data()
