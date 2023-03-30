@@ -109,7 +109,13 @@ def rx_data(writer):
     return 0
 
 
-port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
+# port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
+ports = glob.glob("/dev/ttyACM*")
+if ports:
+    port = ports[0]
+else:
+    sys.stderr.write("ERR: No serial ports available\r\n")
+    port = ""
 baud = 115200
 
 
