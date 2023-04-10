@@ -16,7 +16,7 @@ def intake_csv(filename):
         mydb = MySQLdb.connect(host='bingdev-db.binghamton.edu',
                            user='watsonsolar', passwd=conf.sql_passwd, db='watsonsolar')
     except:
-        sys.stderr("Failed to connect to SQL database\r\n")
+        sys.stderr.write("Failed to connect to SQL database\r\n")
         return -1
     cursor = mydb.cursor()
     file = open(filename, 'r')
@@ -32,7 +32,7 @@ def intake_csv(filename):
             try:
                 cursor.execute('INSERT INTO %s VALUES(%s)' % (conf.sql_table, string))
             except:
-                sys.stderr("ERR: Failed to execute SQL query\r\n")
+                sys.stderr.write("ERR: Failed to execute SQL query\r\n")
                 mydb.commit()
                 cursor.close()
                 file.close()
@@ -45,8 +45,8 @@ def intake_csv(filename):
 
 while 1:
     if glob.glob(src+'*.csv'):
-        for file in glob.glob(src+'*.csv'):
-            retval = intake_csv(file)
+        for filename in glob.glob(src+'*.csv'):
+            retval = intake_csv(filename)
             if (retval != 0):
                 pass # do something to log/notify about error
     time.sleep(15*60) # wait for 15 minutes
