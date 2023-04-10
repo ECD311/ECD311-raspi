@@ -26,6 +26,7 @@ rx_datetime_first = "0000-00-00_00:00:00"
 datetime_start = datetime.now(tz=timezone.utc)
 firstrun = 1
 
+cronitor.api_key = conf.cronitor_api_key
 
 # 5 minute cache
 @cachetools.cached(cache=cachetools.TTLCache(ttl=60*5, maxsize=1))
