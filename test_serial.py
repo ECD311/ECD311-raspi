@@ -156,6 +156,7 @@ except:
 
 while (datetime_start < (datetime_start + timedelta(hours=12))):
     csvlines = 0
+    firstrun = 1
 
     if glob.glob("*.csv"):
         file = open(glob.glob("*.csv", recursive=False)[0], 'a')
