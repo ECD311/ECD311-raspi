@@ -4,6 +4,7 @@ import glob
 import pandas as pd
 
 src = "archive/"
+to_delete = []
 
 for file in glob.glob(src+"*.csv"):
     print(file)
@@ -20,6 +21,7 @@ for file in glob.glob(src+"*.csv"):
     if not os.path.exists(src + year + "/" + month):
         os.mkdir(src + year + "/" + month)
     os.rename(file, src + year+ "/" + month + "/" + file.split("/")[-1])
+    to_delete.append(src + year+ "/" + month + "/" + file.split("/")[-1])
 
 
 for file in os.listdir(src):
@@ -33,7 +35,10 @@ for file in os.listdir(src):
                     combined_csv = pd.concat([pd.read_csv(f) for f in files])
                 except:
                     continue
-                combined_csv.to_csv(os.path.join(src, str(year), str(month), "data_log_%s_%s_%s.csv" % (year, month, day)))
-                print(os.path.join(src, str(year), str(month), "data_log_%s_%s_%s.csv" % (year, month, day)))
+                combined_csv.to_csv(os.path.join(src, str(year), str(month), "data_log_%s_%02i_%02i.csv" % (year, month, day)))
+                print(os.path.join(src, str(year), str(month), "data_log_%s_%02i_%02i.csv" % (year, month, day)))
 
 # remove existing files after concat
+
+for file in to_delete:
+    os.remove(file)
