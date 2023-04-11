@@ -1,0 +1,11 @@
+[Unit]
+Description=send/receive data from arduino
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/home/pi/scripts/test_serial.py
+Restart=Always
+
+[Install]
+WantedBy=multi-user.target

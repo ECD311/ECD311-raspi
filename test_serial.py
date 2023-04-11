@@ -1,40 +1,122 @@
+#!/usr/bin/python3
 import serial
 import csv
 import os
 import glob
 import ast
 from paramiko import SSHClient
-from pyscp import SCPClient
+from scp import SCPClient
 import cachetools
 from pyowm import owm
 import sys
-from suncalc import get_position, get_times
-from datetime import datetime, timedelta
+from pysolar.solar import get_altitude, get_azimuth
+from pysolar.util import get_sunrise_sunset
+from datetime import datetime, timezone, timedelta
+import cronitor
 try:
     import conf
 except:
-    sys.stderr.write("ERR: conf.py not found")
+    sys.stderr.write("ERR: conf.py not found\r\n")
     sys.exit(1)
 
 owm = owm.OWM(conf.owm_api_key)
 mgr = owm.weather_manager()
 
+rx_datetime_first = "0000-00-00_00:00:00"
+datetime_start = datetime.now(tz=timezone.utc)
+firstrun = 1
 
-@cachetools.cached(cache=cachetools.TTLCache(ttl=60*5))  # 5 minute cache
+cronitor.api_key = conf.cronitor_api_key
+
+# 5 minute cache
+@cachetools.cached(cache=cachetools.TTLCache(ttl=60*5, maxsize=1))
 def get_weather():
-    return mgr.weather_at_place(conf.place).weather.detailed_status
+    try: 
+        retval = mgr.weather_at_place(conf.owm_location).weather.detailed_status
+    except:
+        retval = "conditions unavailable"
+    return retval
 
 
-def get_current_position():
-    return get_position(datetime.utcnow(), conf.suncalc_lon, conf.suncalc_lat)
+def get_current_position():  # {'azimuth': azimuth, 'altitude': altitude}
+    azimuth = get_azimuth(conf.suncalc_lat, conf.suncalc_lon,
+                          datetime.now(tz=timezone.utc))
+    altitude = get_altitude(
+        conf.suncalc_lat, conf.suncalc_lon, datetime.now(tz=timezone.utc))
+    return {'azimuth': azimuth, 'altitude': altitude}
 
 
-def get_suntimes():
-    times = get_times(datetime.utcnow(), conf.suncalc_lon, conf.suncalc_lat)
-    return (times['sunrise'] - timedelta(hours=conf.datetime_offset), times['sunset'] - timedelta(hours=conf.datetime_offset))
+def get_suntimes():  # (sunrise, sunset, azimuth @ sunrise, altitude @ sunrise)
+    times = get_sunrise_sunset(
+        conf.suncalc_lat, conf.suncalc_lon, datetime.now(tz=timezone.utc))
+    sunrise_position_azim = get_azimuth(
+        conf.suncalc_lat, conf.suncalc_lon, times[0])
+    sunrise_position_alt = get_altitude(
+        conf.suncalc_lat, conf.suncalc_lon, times[0])
+    return (times[0], times[1], sunrise_position_azim, sunrise_position_alt)
+
+@cronitor.job('upload_data')
+def upload_data():
+    ssh = SSHClient()
+    ssh.load_system_host_keys()
+    ssh.connect('34.238.23.117', username='watsolar')
+
+    scp = SCPClient(ssh.get_transport())
+
+    new_filename = "data_log_" + rx_datetime_first + ".csv"
+    os.rename(glob.glob("/home/pi/Scripts/*.csv")[0], "/home/pi/Scripts/move/" + new_filename)
+    for filename in glob.glob("/home/pi/Scripts/move/*.csv"):
+        try:
+            scp.put(filename, remote_path='datalogs/')
+        except:
+            # scp.close()
+            # ssh.close()
+            print('issue sending csv')
+            sys.stderr.write("ERR: Failed to upload file %s to bingdev\r\n" % filename)
+            continue
+        os.rename(filename, "/home/pi/Scripts/moved/" + filename.split('/')[-1])
+    # os.rename("move/" + new_filename, "moved/" + new_filename)
+    scp.close()
+    ssh.close()
+    sys.stdout.write("LOG: Uploaded files to bingdev\r\n")
+    print("send data")
+
+@cronitor.job('rx_data')
+def rx_data(writer):
+    print("rx\n")
+    global firstrun
+    global rx_datetime_first
+    try:
+        line = ser.readline().rstrip().decode("utf-8")
+        # print(line)
+    except:
+        sys.stderr.write("WARN: Failed to receive/decode input\r\n")
+        pass
+    try:
+        dict = ast.literal_eval(line)
+        # print(dict)
+    except:  # just ignore errors here, should only error once
+        print("failed read")
+        sys.stderr.write("WARN: failed to literal eval input\r\n")
+        return -1
+
+    if firstrun:
+        rx_datetime_first = dict['Date_Time']
+        firstrun = 0
+
+    outdoor_conditions = get_weather()
+    dict["Outdoor_Conditions"] = outdoor_conditions
+    writer.writerow(dict)
+    return 0
 
 
-port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
+# port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
+ports = glob.glob("/dev/ttyACM*")
+if ports:
+    port = ports[0]
+else:
+    sys.stderr.write("ERR: No serial ports available\r\n")
+    port = ""
 baud = 115200
 
 
@@ -48,139 +130,79 @@ try:
     ser = serial.Serial(port, baud)  # 9600 8N1 default
 except serial.SerialException:
     ser = serial.Serial()  # the serial port isn't available, create a closed interface
-
-# LOG
-# datetime - date time
-# state - maint, wind, etc
-# solar V\n I\n W\n
-# batt 1 V
-# batt 2 V
-# batt total V\n I\n W\n
-# load V\n I\n W\n
-# inverter V\n I\n W\n
-# motor 1 V\n I\n W\n
-# motor 2 V\n I\n W\n
-# 5V rail V\n I\n W\n
-# wind speed (m/s)
-# out temp
-# out humidity
-# in temp
-# in humidity
-# azim reading + command
-# azim motor mode (auto, manual)
-# azim motor status (ccw, cw, off)
-# elev reading + command
-# elev motor mode (auto, manual)
-# elev motor status (ccw, cw, off)
+    sys.stderr.write("ERR: Unable to open serial port %s\r\n" % port)
 
 # if a csv exists in current dir, open it
 # after N lines in csv, close, move to other dir to get sent to bingweb
 
+# LOG\r\n
+# dict containing all sensor data, using ast.literal_eval() to transform into actual python dict
+#   dict based on newheader
+
+# optional:
+# new_position
+# respond with the current azimuth and elevation of the sun
+# new_times
+# respond with today's sunrise/sunset and position at sunrise
+
 # wait for readline() to return "LOG\n"
 # if csv doesnt exist in current dir, make a new one with ts value in next readline()
-# read in each value from readline(), insert into csv via dict, and repeat
 
 # does not handle errors from arduino, only logs
+try:
+    ser.write("start\n")
+except:
+    sys.stderr.write("ERR: Unable to send start string - arduino will not start up")
 
-while (1):
+while (datetime_start < (datetime_start + timedelta(hours=12))):
     csvlines = 0
     firstrun = 1
 
     if glob.glob("*.csv"):
-        file = open(glob.glob("*.csv", recursive=False)[0], 'a')
+        file = open(glob.glob("/home/pi/Scripts/*.csv", recursive=False)[0], 'a')
         writer = csv.DictWriter(file, fieldnames=newheader)
     else:
-        file = open("new.csv", 'w')
+        file = open("/home/pi/Scripts/new.csv", 'w')
         writer = csv.DictWriter(file, fieldnames=newheader)
         writer.writeheader()
 
     while csvlines <= (30 * 60)/2:  # 30 mins @ 2 seconds per measurement
 
         # may miss one log at first startup, shouldnt be an issue
-        while ser.readline().rstrip().decode("utf-8") != "LOG":
-            pass
-        print("rx\n")
-        # rx_datetime = ser.readline().rstrip().decode("utf-8")
-        # if firstrun:
-        #     rx_datetime_first = rx_datetime
-        #     firstrun = 0
-        # sys_state = ser.readline().rstrip().decode("utf-8")
+        try:
+            line = ser.readline().rstrip().decode("utf-8")
+        except:
+            line = ""
 
-        # solar_voltage = ser.readline().rstrip().decode("utf-8")
-        # solar_current = ser.readline().rstrip().decode("utf-8")
-        # solar_power = ser.readline().rstrip().decode("utf-8")
+        print(line)
+        if (line == "LOG"):
+            if (rx_data(writer) == 0):
+                csvlines += 1
+        elif (line == "new_position"):  # azimuth, then altitude in degrees
+            print("position")
+            location = get_current_position()
+            azim = b"%i\n" % int(location['azimuth'])
+            elev = b"%i\n" % int(location['altitude'])
+            ser.write(azim)
+            ser.write(elev)
+            print("azimuth: %d" % int(location['azimuth']))
+            print("elevation: %d" % int(location['altitude']))
+            #print('actual: ' + str(int(location['azimuth'])))
+            #print('actual: ' + str(int(location['altitude'])))
+            # print(ser.read(6).rstrip().decode("utf-8"))
 
-        # bat1_voltage = ser.readline().rstrip().decode("utf-8")
-        # bat2_voltage = ser.readline().rstrip().decode("utf-8")
+        elif (line == "new_times"):
+            print("times")
+            times = get_suntimes()
+            time0 = "%s\n" % times[0].strftime("%H:%M:%S")
+            time1 = "%s\n" % times[1].strftime("%H:%M:%S")
+            azim = b"%i\n" % int(times[2])
+            elev = b"%i\n" % int(times[3])
+            ser.write(time0.encode())
+            ser.write(time1.encode())
+            ser.write(azim)
+            ser.write(elev)
 
-        # bat_tot_voltage = ser.readline().rstrip().decode("utf-8")
-        # bat_tot_current = ser.readline().rstrip().decode("utf-8")
-        # bat_tot_power = ser.readline().rstrip().decode("utf-8")
-
-        # load_voltage = ser.readline().rstrip().decode("utf-8")
-        # load_current = ser.readline().rstrip().decode("utf-8")
-        # load_power = ser.readline().rstrip().decode("utf-8")
-
-        # inverter_voltage = ser.readline().rstrip().decode("utf-8")
-        # inverter_current = ser.readline().rstrip().decode("utf-8")
-        # inverter_power = ser.readline().rstrip().decode("utf-8")
-
-        # m1_voltage = ser.readline().rstrip().decode("utf-8")
-        # m1_current = ser.readline().rstrip().decode("utf-8")
-        # m1_power = ser.readline().rstrip().decode("utf-8")
-
-        # m2_voltage = ser.readline().rstrip().decode("utf-8")
-        # m2_current = ser.readline().rstrip().decode("utf-8")
-        # m2_power = ser.readline().rstrip().decode("utf-8")
-
-        # five_volt_voltage = ser.readline().rstrip().decode("utf-8")
-        # five_volt_current = ser.readline().rstrip().decode("utf-8")
-        # five_volt_power = ser.readline().rstrip().decode("utf-8")
-
-        # wind_speed = ser.readline().rstrip().decode("utf-8")
-
-        # out_temp = ser.readline().rstrip().decode("utf-8")
-        # out_humid = ser.readline().rstrip().decode("utf-8")
-
-        # in_temp = ser.readline().rstrip().decode("utf-8")
-        # in_humid = ser.readline().rstrip().decode("utf-8")
-
-        # azim_reading = ser.readline().rstrip().decode("utf-8")
-        # azim_command = ser.readline().rstrip().decode("utf-8")
-        # azim_mode = ser.readline().rstrip().decode("utf-8")
-        # azim_status = ser.readline().rstrip().decode("utf-8")
-
-        # elev_reading = ser.readline().rstrip().decode("utf-8")
-        # elev_command = ser.readline().rstrip().decode("utf-8")
-        # elev_mode = ser.readline().rstrip().decode("utf-8")
-        # elev_status = ser.readline().rstrip().decode("utf-8")
-
-        dict = ast.literal_eval(ser.readline().rstrip().decode("utf-8"))
-        if firstrun:
-            rx_datetime_first = dict['Date_Time']
-            firstrun = 0
-
-        outdoor_conditions = get_weather()
-
-        # continue for each variable sent
-        # ideally read a single json or dict and use json module / ast.literal_eval() to avoid having ~40 separate reads
-
-        # writer.writerow({'Date_Time': rx_datetime, 'System_Status': sys_state, 'Solar_Panel_Voltage': solar_voltage, 'Solar_Panel_Current': solar_current, 'Solar_Panel_Power': solar_power, 'Battery_One_Voltage': bat1_voltage, 'Battery_Two_Voltage': bat2_voltage, 'Battery_Total_Voltage': bat_tot_voltage, 'Battery_Total_Current': bat_tot_current, 'Battery_Total_Power': bat_tot_power, 'Load_Voltage': load_voltage, 'Load_Current': load_current, 'Load_Power': load_power, 'Inverter_Voltage': inverter_voltage, 'Inverter_Current': inverter_current, 'Inverter_Power': inverter_power, 'Motor_One_Voltage': m1_voltage, 'Motor_One_Current': m1_current,
-        #                 'Motor_One_Power': m1_power, 'Motor_Two_Voltage': m2_voltage, 'Motor_Two_Current': m2_current, 'Motor_Two_Power': m2_power, 'Five_Volt_Voltage': five_volt_voltage, 'Five_Volt_Current': five_volt_current, 'Five_Volt_Power': five_volt_power, 'Windspeed': wind_speed, 'Outdoor_Temp': out_temp, 'Outdoor_Humidity': out_humid, 'System_Temp': in_temp, 'System_Humidity': in_humid, 'Azimuth_Reading': azim_reading, 'Azimuth_Command': azim_command, 'Azimuth_Motor_Mode': azim_mode, 'Azimuth_Motor_Status': azim_status, 'Elevation_Reading': elev_reading, 'Elevation_Command': elev_command, 'Elevation_Motor_Mode': elev_mode, 'Elevation_Motor_Status': elev_status})
-
-        writer.writerow(dict)
-        csvlines += 1
     file.close()
 
-    ssh = SSHClient()
-    ssh.load_system_host_keys()
-    ssh.connect('34.238.23.117', username='watsolar')
-
-    scp = SCPClient(ssh.get_transport())
-
-    new_filename = "data_log_" + rx_datetime_first + ".csv"
-    os.rename(glob.glob("*.csv")[0], "move/" + new_filename)
-    scp.put("move/" + new_filename, remote_path='datalogs/')
-    scp.close()
-    ssh.close()
-    print("send data")
+    upload_data()
