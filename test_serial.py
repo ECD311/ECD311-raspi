@@ -64,8 +64,8 @@ def upload_data():
     scp = SCPClient(ssh.get_transport())
 
     new_filename = "data_log_" + rx_datetime_first + ".csv"
-    os.rename(glob.glob("*.csv")[0], "move/" + new_filename)
-    for filename in glob.glob("move/*.csv"):
+    os.rename(glob.glob("/home/pi/Scripts/*.csv")[0], "/home/pi/Scripts/move/" + new_filename)
+    for filename in glob.glob("/home/pi/Scripts/move/*.csv"):
         try:
             scp.put(filename, remote_path='datalogs/')
         except:
@@ -74,7 +74,7 @@ def upload_data():
             print('issue sending csv')
             sys.stderr.write("ERR: Failed to upload file %s to bingdev\r\n" % filename)
             continue
-        os.rename(filename, "moved/" + filename.split('/')[-1])
+        os.rename(filename, "/home/pi/Scripts/moved/" + filename.split('/')[-1])
     # os.rename("move/" + new_filename, "moved/" + new_filename)
     scp.close()
     ssh.close()
@@ -159,10 +159,10 @@ while (datetime_start < (datetime_start + timedelta(hours=12))):
     firstrun = 1
 
     if glob.glob("*.csv"):
-        file = open(glob.glob("*.csv", recursive=False)[0], 'a')
+        file = open(glob.glob("/home/pi/Scripts/*.csv", recursive=False)[0], 'a')
         writer = csv.DictWriter(file, fieldnames=newheader)
     else:
-        file = open("new.csv", 'w')
+        file = open("/home/pi/Scripts/new.csv", 'w')
         writer = csv.DictWriter(file, fieldnames=newheader)
         writer.writeheader()
 
