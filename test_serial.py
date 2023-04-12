@@ -1,4 +1,11 @@
 #!/usr/bin/python3
+
+#####################################################
+# Watson Capstone Projects
+# Team ECD311 - Solar Tracking Project
+# Team Members - Carson Singh, Selman Oguz, Adam Young, Bea Mulvey
+#####################################################
+
 import serial
 import csv
 import os
