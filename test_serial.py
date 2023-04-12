@@ -185,6 +185,8 @@ while (datetime_start < (datetime_start + timedelta(hours=12))):
         if (line == "LOG"):
             if (rx_data(writer) == 0):
                 csvlines += 1
+                file.flush()
+                os.fsync(file.fileno())
         elif (line == "new_position"):  # azimuth, then altitude in degrees
             print("position")
             location = get_current_position()
