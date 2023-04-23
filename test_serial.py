@@ -8,20 +8,20 @@
 # Instructor - Meghana Jain
 #####################################################
 
-import serial
-import csv
-import os
-import glob
-import ast
-from paramiko import SSHClient
-from scp import SCPClient
-import cachetools
-from pyowm import owm
-import sys
-from pysolar.solar import get_altitude, get_azimuth
-from pysolar.util import get_sunrise_sunset
-from datetime import datetime, timezone, timedelta
-import cronitor
+import serial # https://pypi.org/project/pyserial/ - provides interactions with serial ports
+import csv # builtin module - used here to write to csv files
+import os # builtin module - used here for some file operations
+import glob # builtin module - used here for filename pattern matching
+import ast # builtin module - used here to translate the string representation of a dictionary to an actual python dictionary
+from paramiko import SSHClient # https://pypi.org/project/paramiko/ - python implementation of SSHv2
+from scp import SCPClient # https://pypi.org/project/scp/ - python bindings for the SCP protocol, using paramiko for SSH
+import cachetools # https://pypi.org/project/cachetools/ - used here to cache weather data to avoid too many requests to the openweathermap api
+from pyowm import owm # https://pypi.org/project/pyowm/ - python wrapper for the openweathermap api
+import sys # builtin module - used here for error handling
+from pysolar.solar import get_altitude, get_azimuth # https://pypi.org/project/pysolar/ - python module for simulating solar irradation of the earth
+from pysolar.util import get_sunrise_sunset # see above
+from datetime import datetime, timezone, timedelta # builtin module - provides objects for date and time interactions
+import cronitor # https://pypi.org/project/cronitor/ - python module for interacting with the cronitor service
 try:
     import conf
 except:
