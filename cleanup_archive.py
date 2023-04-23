@@ -1,4 +1,11 @@
-import sys
+#####################################################
+# Watson Capstone Projects
+# Team ECD311 - Solar Tracking Project
+# Team Members - Carson Singh, Selman Oguz, Adam Young, Bea Mulvey
+# Advisor - Tara Dhakal
+# Instructor - Meghana Jain
+#####################################################
+
 import os
 import glob
 import pandas as pd
@@ -6,6 +13,8 @@ import pandas as pd
 src = "archive/"
 to_delete = []
 
+
+# iterate through every file in the top level of the source directory, and move it to its own year/month directory based on filename
 for file in glob.glob(src+"*.csv"):
     print(file)
     try:
@@ -24,6 +33,7 @@ for file in glob.glob(src+"*.csv"):
     to_delete.append(src + year+ "/" + month + "/" + file.split("/")[-1])
 
 
+# merge every csv for each day into a single file
 for file in os.listdir(src):
     if os.path.isdir(src+file):
         year = file.split("/")[-1]
@@ -39,7 +49,7 @@ for file in os.listdir(src):
                 combined_csv.to_csv(os.path.join(src, str(year), "%02i" % month, "data_log_%s_%02i_%02i.csv" % (year, month, day)), index=False)
                 print(os.path.join(src, str(year), "%02i" % month, "data_log_%s_%02i_%02i.csv" % (year, month, day)))
 
-# remove existing files after concat
 
+# remove existing files after concat
 for file in to_delete:
     os.remove(file)

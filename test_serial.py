@@ -4,6 +4,8 @@
 # Watson Capstone Projects
 # Team ECD311 - Solar Tracking Project
 # Team Members - Carson Singh, Selman Oguz, Adam Young, Bea Mulvey
+# Advisor - Tara Dhakal
+# Instructor - Meghana Jain
 #####################################################
 
 import serial
@@ -33,18 +35,22 @@ rx_datetime_first = "0000-00-00_00:00:00"
 datetime_start = datetime.now(tz=timezone.utc)
 firstrun = 1
 
+# set api key for cronitor - used for monitoring and alerting about performance
 cronitor.api_key = conf.cronitor_api_key
 
+# get the current conditions from openweathermap to be logged with each data point
+#   theoretically could be used to correlate power production and consumption with the weather
 # 5 minute cache
 @cachetools.cached(cache=cachetools.TTLCache(ttl=60*5, maxsize=1))
 def get_weather():
-    try: 
+    try:
         retval = mgr.weather_at_place(conf.owm_location).weather.detailed_status
     except:
         retval = "conditions unavailable"
     return retval
 
 
+# calculate the current position of the sun
 def get_current_position():  # {'azimuth': azimuth, 'altitude': altitude}
     azimuth = get_azimuth(conf.suncalc_lat, conf.suncalc_lon,
                           datetime.now(tz=timezone.utc))
@@ -53,6 +59,7 @@ def get_current_position():  # {'azimuth': azimuth, 'altitude': altitude}
     return {'azimuth': azimuth, 'altitude': altitude}
 
 
+# calculate today's sunrise and sunset time, along with the position of the sun at sunrise
 def get_suntimes():  # (sunrise, sunset, azimuth @ sunrise, altitude @ sunrise)
     times = get_sunrise_sunset(
         conf.suncalc_lat, conf.suncalc_lon, datetime.now(tz=timezone.utc))
@@ -62,6 +69,9 @@ def get_suntimes():  # (sunrise, sunset, azimuth @ sunrise, altitude @ sunrise)
         conf.suncalc_lat, conf.suncalc_lon, times[0])
     return (times[0], times[1], sunrise_position_azim, sunrise_position_alt)
 
+
+# upload all pending data to bingdev
+# should handle reattempting failed transfers
 @cronitor.job('upload_data')
 def upload_data():
     ssh = SSHClient()
@@ -71,7 +81,8 @@ def upload_data():
     scp = SCPClient(ssh.get_transport())
 
     new_filename = "data_log_" + rx_datetime_first + ".csv"
-    os.rename(glob.glob("/home/pi/Scripts/*.csv")[0], "/home/pi/Scripts/move/" + new_filename)
+    os.rename(glob.glob("/home/pi/Scripts/*.csv")
+              [0], "/home/pi/Scripts/move/" + new_filename)
     for filename in glob.glob("/home/pi/Scripts/move/*.csv"):
         try:
             scp.put(filename, remote_path='datalogs/')
@@ -79,15 +90,19 @@ def upload_data():
             # scp.close()
             # ssh.close()
             print('issue sending csv')
-            sys.stderr.write("ERR: Failed to upload file %s to bingdev\r\n" % filename)
+            sys.stderr.write(
+                "ERR: Failed to upload file %s to bingdev\r\n" % filename)
             continue
-        os.rename(filename, "/home/pi/Scripts/moved/" + filename.split('/')[-1])
+        os.rename(filename, "/home/pi/Scripts/moved/" +
+                  filename.split('/')[-1])
     # os.rename("move/" + new_filename, "moved/" + new_filename)
     scp.close()
     ssh.close()
     sys.stdout.write("LOG: Uploaded files to bingdev\r\n")
     print("send data")
 
+
+# handle receiving data from arduino and writing into a csv file
 @cronitor.job('rx_data')
 def rx_data(writer):
     print("rx\n")
@@ -117,7 +132,8 @@ def rx_data(writer):
     return 0
 
 
-# port = "/dev/ttyACM0"  # placeholder, switch w actual serial port; use env var?
+# attempt to detect which serial port the arduino is connected to
+# unlikely to be necessary in reality but it has come up when testing
 ports = glob.glob("/dev/ttyACM*")
 if ports:
     port = ports[0]
@@ -125,10 +141,6 @@ else:
     sys.stderr.write("ERR: No serial ports available\r\n")
     port = ""
 baud = 115200
-
-
-header = ['Date_Time', 'System_Status', 'Solar_Panel_Voltage', 'Solar_Panel_Current', 'Solar_Panel_Power', 'Battery_One_Voltage', 'Battery_Two_Voltage', 'Battery_Total_Voltage', 'Battery_Total_Current', 'Battery_Total_Power', 'Load_Voltage', 'Load_Current', 'Load_Power', 'Inverter_Voltage', 'Inverter_Current', 'Inverter_Power', 'Motor_One_Voltage', 'Motor_One_Current', 'Motor_One_Power',
-          'Motor_Two_Voltage', 'Motor_Two_Current', 'Motor_Two_Power', 'Five_Volt_Voltage', 'Five_Volt_Current', 'Five_Volt_Power', 'Windspeed', 'Outdoor_Temp', 'Outdoor_Humidity', 'System_Temp', 'System_Humidity', 'Azimuth_Reading', 'Azimuth_Command', 'Azimuth_Motor_Mode', 'Azimuth_Motor_Status', 'Elevation_Reading', 'Elevation_Command', 'Elevation_Motor_Mode', 'Elevation_Motor_Status']
 
 newheader = ['Date_Time', 'System_Status', 'Solar_Panel_Voltage', 'Solar_Panel_Current', 'Solar_Panel_Power', 'Battery_One_Voltage', 'Battery_Two_Voltage', 'Battery_Total_Voltage', 'Battery_Total_Power', 'Load_Voltage', 'Load_Current', 'Load_Power',
              'Windspeed', 'Outdoor_Temp', 'Outdoor_Humidity', 'Outdoor_Conditions', 'Azimuth_Reading', 'Azimuth_Command', 'Azimuth_Motor_Mode', 'Azimuth_Motor_Status', 'Elevation_Reading', 'Elevation_Command', 'Elevation_Motor_Mode', 'Elevation_Motor_Status']
@@ -159,14 +171,21 @@ except serial.SerialException:
 try:
     ser.write("start\n")
 except:
-    sys.stderr.write("ERR: Unable to send start string - arduino will not start up")
+    sys.stderr.write(
+        "ERR: Unable to send start string - arduino will not start up")
 
+
+# terminate script every 12 hours
+# systemd service handles restarting automatically, although if there are too many failures in a short period of time it will give up
 while (datetime_start < (datetime_start + timedelta(hours=12))):
+
     csvlines = 0
     firstrun = 1
 
-    if glob.glob("*.csv"):
-        file = open(glob.glob("/home/pi/Scripts/*.csv", recursive=False)[0], 'a')
+    # open existing csv if it exists, otherwise create a new one
+    if glob.glob("/home/pi/Scripts/*.csv"):
+        file = open(glob.glob("/home/pi/Scripts/*.csv",
+                    recursive=False)[0], 'a')
         writer = csv.DictWriter(file, fieldnames=newheader)
     else:
         file = open("/home/pi/Scripts/new.csv", 'w')
@@ -181,7 +200,10 @@ while (datetime_start < (datetime_start + timedelta(hours=12))):
         except:
             line = ""
 
-        print(line)
+        # handle the 3 possible cases for input from arduino
+        #   log - intake fresh data from arduino and write into csv
+        #   position - calculate and send the current position of the sun to the arduino
+        #   times - calculate and send today's sunrise and sunset times, as well as the position of the sun at sunrise
         if (line == "LOG"):
             if (rx_data(writer) == 0):
                 csvlines += 1
@@ -196,9 +218,6 @@ while (datetime_start < (datetime_start + timedelta(hours=12))):
             ser.write(elev)
             print("azimuth: %d" % int(location['azimuth']))
             print("elevation: %d" % int(location['altitude']))
-            #print('actual: ' + str(int(location['azimuth'])))
-            #print('actual: ' + str(int(location['altitude'])))
-            # print(ser.read(6).rstrip().decode("utf-8"))
 
         elif (line == "new_times"):
             print("times")

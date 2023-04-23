@@ -1,9 +1,22 @@
 #!/usr/bin/python2
+
+#####################################################
+# Watson Capstone Projects
+# Team ECD311 - Solar Tracking Project
+# Team Members - Carson Singh, Selman Oguz, Adam Young, Bea Mulvey
+# Advisor - Tara Dhakal
+# Instructor - Meghana Jain
+#####################################################
+
+# this is a complete rewrite of the old code to take the contents of uploaded csv files and put them in the sql server
+# the old code is commented at the bottom file for posterity, but some of the choices made when writing don't make a lot of sense so it may not be useful
+# this no longer sits in an infinite loop and is now periodically run using a cron job
+
+
 from __future__ import print_function
 import csv
 import MySQLdb
 import os
-import time
 import conf
 import glob
 import sys
@@ -11,6 +24,8 @@ import sys
 src = 'datalogs/'
 dst = 'archive/'
 
+
+# read each row in the provided csv file with the exception of the header, and insert it into the table specified in conf.py
 def intake_csv(filename):
     try:
         mydb = MySQLdb.connect(host='bingdev-db.binghamton.edu',
@@ -32,6 +47,8 @@ def intake_csv(filename):
             try:
                 cursor.execute('INSERT INTO %s VALUES(%s)' % (conf.sql_table, string))
             except:
+                # this typically seems to happen if the contents of the csv file are malformed - this is likely if there are any spaces in strings
+                # although building up a string containing each element of the row seems to mitigate this issue
                 sys.stderr.write("ERR: Failed to execute SQL query\r\n")
                 mydb.commit()
                 cursor.close()
@@ -40,16 +57,17 @@ def intake_csv(filename):
     mydb.commit()
     cursor.close()
     file.close()
+    # move the file to the destination folder after the contents are successfully inserted into the sql table
     os.rename(filename, dst+(filename.split('/')[-1]))
     return 0
 
-while 1:
-    if glob.glob(src+'*.csv'):
-        for filename in glob.glob(src+'*.csv'):
-            retval = intake_csv(filename)
-            if (retval != 0):
-                pass # do something to log/notify about error
-    time.sleep(15*60) # wait for 15 minutes
+
+# iterate over all files in the source directory, and insert the contained data to the sql server
+if glob.glob(src+'*.csv'):
+    for filename in glob.glob(src+'*.csv'):
+        retval = intake_csv(filename)
+        if (retval != 0):
+            pass # todo: do something to log/notify about errors
 
 # while True:
 #     while True:
